@@ -1,0 +1,133 @@
+```{r}
+install.packages("nycflights13")
+library(nycflights13)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+Datasets del paquete
+* flights: vuelos que salen de Nueva York
+* airports: aeropuertos
+* planes: aviones particulares utilizados en vuelos
+* airlines: aerolíneas
+* weather: condiciones climáticas en la ciudad/aeropuerto
+```{r}
+View(flights)
+View(airports)
+View(planes)
+View(airlines)
+View(weather)
+```
+
+1. Inner Join
+1.1. Conectando flights con planes
+```{r}
+flights %>%
+  inner_join(planes, by="tailnum")
+```
+
+1.2. Conectando flights con airlines
+```{r}
+flights %>%
+  inner_join(airlines, by="carrier")
+```
+
+1.3. Conectando flights con airports
+```{r}
+flights %>%
+  inner_join(airports, by=c("origin"="faa")) %>%
+  inner_join(airports, by=c("dest"="faa"))
+```
+
+1.4. Conectando flights con weather
+```{r}
+flights %>%
+  inner_join(weather, by=c("year","month","day","hour","origin"))
+```
+
+2. Data manipulation
+2.1. Utilizando count en flights, enviando como parámetro year, month, day.
+Filtrando n mayor a 1000, ordenando n con arrange y devolviendo el resultado
+```{r}
+flights %>%
+  count(year, month, day) %>%
+  filter(n>1000) %>%
+  arrange(n)
+```
+
+2.2. Utilizando selección por rango para obtener las variables desde year hasta day, agregando hour, origin, dest, tailnum, carrier, arr_delay, dep_delay y almacenando en flights_selected
+```{r}
+flights_selected <- flights %>%
+  select(year:day,hour, origin, dest, tailnum, carrier, arr_delay, dep_delay)
+```
+
+2.3. Utilizando left_join combinar airlines y flight_selected. Al obtener el resultado utilizar select para eliminar columnas origin y dest. Agregando con mutate la columna tot_delay que tenga la suma de arr_delay y dep_delay
+```{r}
+airlines %>%
+  left_join(flights_selected) %>%
+  select(-origin,-dest) %>%
+  mutate(tot_delay=arr_delay+dep_delay)
+```
+
+2.4. Utilizando inner_join combinar flights y weather, agrupando por precip, utilizando summarize con el promedio de dep_delay asignandole a delay, utilizar mean con el parametro na.rm=true, agregando la función replace_na sobre delay sustituyendo NA por 0, almacenando el resultado en precip_delay.
+```{r}
+precip_delay <- flights %>%
+  inner_join(weather, by=c("year","month","day","hour","origin")) %>%
+  group_by(precip) %>%
+  summarize(delay = mean(dep_delay, na.rm = TRUE)) %>%
+  mutate(delay=replace_na(delay,0))
+```
+
+2.5. Utilizando precip_delay para crear un gráfico de puntos con x=precip y y=delay
+```{r}
+ggplot(precip_delay, aes(x=precip, y=delay)) + geom_point()
+```
+
+2.6. Utilizando flights, aplicando filter para year=2013, month=5, day=10. Agrupando por dest. Utilizando summarize para el promedio de arr_delay, con na.rm=TRUE y asignando a delay. Conectando con inner join a airports y asignando el resultado a flights_airports
+
+Nota: con este combinación aparecen 2 columnas: dest y delay
+```{r}
+flights_airports <- flights %>%
+  filter(year==2013, month==5, day==10) %>%
+  group_by(dest) %>%
+  summarize(delay=mean(arr_delay, na.rm=TRUE)) %>%
+  inner_join(airports, by=c("dest"="faa"))
+```
+
+2.7. Utilizando flights_airports para crear un gráfico de puntos con x=lon y y=lat, color=delay y tamaño=delay
+```{r}
+ggplot(flights_airports, aes(x=lon, y=lat, color=delay, size=delay)) + geom_point()
+```
+
+2.8. Conectando flights con planes, agregando sufijos _flights y _planes. Utilizando transmutate para seleccionar tailnum y manufacturer, ademas agregar la variable pi que almacena la suma de dep_delay y arr_delay dividido por air_time
+```{r}
+flights %>%
+  inner_join(planes, by="tailnum", suffix=c("_flights","_planes")) %>%
+  transmute(tailnum,manufacturer, pi=(dep_delay+arr_delay)/air_time)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
